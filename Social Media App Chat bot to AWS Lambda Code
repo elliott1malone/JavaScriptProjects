@@ -1,0 +1,53 @@
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.google.cloud.dialogflow.v2.Dialogflow;
+import com.google.cloud.dialogflow.v2.QueryInput;
+import com.google.cloud.dialogflow.v2.DetectIntentResponse;
+import com.google.cloud.dialogflow.v2.Intent;
+import com.google.cloud.dialogflow.v2.Entity;
+
+public class SocialAppChat implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+    private Dialogflow dialogflowClient;
+
+    public SocialAppChat() {
+        // Initialize Dialogflow client
+        dialogflowClient = DialogflowClient.create();
+    }
+
+    @Override
+    public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
+        String userMessage = input.getBody();
+
+        // Create a Dialogflow query input
+        QueryInput queryInput = QueryInput.newBuilder()
+                .setText(userMessage)
+                .setLanguageCode("en-US")
+                .build();
+
+        // Detect intent and extract entities
+        DetectIntentResponse response = dialogflowClient.detectIntent(queryInput);
+        Intent intent = response.getQueryResult().getIntent();
+        Map<String, String> entities = response.getQueryResult().getParameters();
+
+        // Process the intent and entities
+        if (intent.getDisplayName().equals("greeting")) {
+            String name = entities.get("name");
+            int age = Integer.parseInt(entities.get("age"));
+            String responseMessage = "Hello, " + name + "! I see you're " + age + " years old.";
+        } else if (intent.getDisplayName().equals("whats_up")) {
+            String name = entities.get("name");
+            String last4SSN = entities.get("last_4_ssn");
+            String responseMessage = "Hey " + name + ", thanks for the verification of your " + last4SSN + ".";
+        } else {
+            String responseMessage = "I didn't understand that. Can you please rephrase?";
+        }
+
+        APIGatewayProxyResponseEvent responseEvent = new APIGatewayProxyResponseEvent();
+        responseEvent.setStatusCode(200);
+        responseEvent.setBody(responseMessage);
+
+        return responseEvent;
+    }
+}
